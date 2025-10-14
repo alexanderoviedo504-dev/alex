@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Alex Music · Tu catálogo personal</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+    <script type="module" src="scripts.js" defer></script>
+  </head>
+  <body>
+    <div class="page">
+      <header class="header">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true">▲</span>
+          <div class="brand-copy">
+            <p class="brand-name">Alex Music</p>
+            <p class="brand-tagline">Escucha libremente mi catálogo</p>
+          </div>
+        </div>
+      </header>
+
+      <main class="main" id="inicio">
+        <section class="hero" aria-labelledby="hero-title">
+          <h1 id="hero-title">Tu música, sin distracciones</h1>
+          <p>
+            Esta aplicación reproduce directamente los archivos ubicados en
+            <code>/music</code> dentro de tu hosting. Sube tus canciones allí y se
+            mostrarán automáticamente en este listado.
+          </p>
+        </section>
+
+        <section class="library" aria-labelledby="catalogo" data-library>
+          <div class="library-header">
+            <h2 id="catalogo">Catálogo</h2>
+            <p class="library-status" data-status aria-live="polite">Cargando canciones…</p>
+          </div>
+          <div class="track-list" data-track-list role="list"></div>
+        </section>
+      </main>
+
+      <footer class="player" data-player hidden>
+        <div class="player-track">
+          <div class="player-cover" data-current-cover aria-hidden="true"></div>
+          <div class="player-text">
+            <p class="player-title" data-current-title>Nada en reproducción</p>
+            <p class="player-artist" data-current-artist></p>
+          </div>
+        </div>
+        <div class="player-controls">
+          <button class="player-button" type="button" data-prev aria-label="Anterior">
+            ◄
+          </button>
+          <button
+            class="player-button primary"
+            type="button"
+            data-play
+            aria-label="Reproducir"
+          >
+            ►
+          </button>
+          <button class="player-button" type="button" data-next aria-label="Siguiente">
+            ►
+          </button>
+        </div>
+        <div class="player-progress">
+          <span class="player-time" data-current-time>0:00</span>
+          <div class="player-bar" role="presentation">
+            <div class="player-bar-fill" data-progress></div>
+          </div>
+          <span class="player-time" data-duration>0:00</span>
+        </div>
+        <audio data-audio preload="none"></audio>
+      </footer>
+    </div>
+  </body>
+</html>
