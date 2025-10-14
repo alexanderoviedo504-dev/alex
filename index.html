@@ -2,163 +2,81 @@
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Alexify - Tu música sin límites</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Alex Music · Tu catálogo personal</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
     <link rel="stylesheet" href="styles.css" />
-    <script src="scripts.js" defer></script>
+    <script type="module" src="scripts.js" defer></script>
   </head>
   <body>
-    <div class="app">
-      <aside class="sidebar">
-        <div class="logo">
-          <span class="logo-icon">🎧</span>
-          <span class="logo-text">Alexify</span>
+    <div class="page">
+      <header class="header">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true">▲</span>
+          <div class="brand-copy">
+            <p class="brand-name">Alex Music</p>
+            <p class="brand-tagline">Escucha libremente mi catálogo</p>
+          </div>
         </div>
-        <nav class="menu">
-          <a class="menu-item active" href="#inicio">Inicio</a>
-          <a class="menu-item" href="#buscar">Buscar</a>
-          <a class="menu-item" href="#biblioteca">Tu biblioteca</a>
-        </nav>
-        <div class="playlist">
-          <p class="playlist-title">Tus listas</p>
-          <a class="playlist-item" href="#">✨ Descubrimientos</a>
-          <a class="playlist-item" href="#">🔥 Lo más escuchado</a>
-          <a class="playlist-item" href="#">🌙 Chill nocturno</a>
-          <a class="playlist-item" href="#">🏃‍♂️ Ritmo para entrenar</a>
-          <a class="playlist-item" href="#">💃 Fiesta latina</a>
-        </div>
-        <div class="install">
-          <button class="install-button">Instalar aplicación</button>
-        </div>
-      </aside>
+      </header>
 
-      <main class="content">
-        <header class="topbar">
-          <div class="search" id="buscar">
-            <input type="search" placeholder="¿Qué quieres escuchar?" />
-          </div>
-          <div class="profile">
-            <div class="profile-avatar">AO</div>
-            <div class="profile-name">Alexander</div>
-          </div>
-        </header>
-
-        <section class="hero" id="inicio">
-          <div class="hero-text">
-            <p class="hero-subtitle">Playlist exclusiva</p>
-            <h1 class="hero-title">Flow Latino 🔥</h1>
-            <p class="hero-description">
-              Lo último en reggaetón, trap y ritmos urbanos para que tu energía no pare.
-            </p>
-            <button class="hero-button">Reproducir</button>
-          </div>
-          <div class="hero-artwork">
-            <div class="hero-card">NUEVO</div>
-            <img src="https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=600&q=80" alt="Flow Latino" />
-          </div>
+      <main class="main" id="inicio">
+        <section class="hero" aria-labelledby="hero-title">
+          <h1 id="hero-title">Tu música, sin distracciones</h1>
+          <p>
+            Esta aplicación reproduce directamente los archivos ubicados en
+            <code>/music</code> dentro de tu hosting. Sube tus canciones allí y se
+            mostrarán automáticamente en este listado.
+          </p>
         </section>
 
-        <section class="section" aria-labelledby="tendencias">
-          <div class="section-header">
-            <h2 id="tendencias">Tendencias para ti</h2>
-            <a class="see-all" href="#">Ver todo</a>
+        <section class="library" aria-labelledby="catalogo" data-library>
+          <div class="library-header">
+            <h2 id="catalogo">Catálogo</h2>
+            <p class="library-status" data-status aria-live="polite">Cargando canciones…</p>
           </div>
-          <div class="cards-grid">
-            <article class="card">
-              <div class="card-cover" style="background-image: url('https://images.unsplash.com/photo-1511379938547-c1f69419868d?auto=format&fit=crop&w=400&q=80');"></div>
-              <h3>Beats &amp; Bars</h3>
-              <p>Hip hop fresco para mover la cabeza.</p>
-            </article>
-            <article class="card">
-              <div class="card-cover" style="background-image: url('https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=400&q=80');"></div>
-              <h3>Night Drive</h3>
-              <p>Sintetizadores y ritmos para la carretera.</p>
-            </article>
-            <article class="card">
-              <div class="card-cover" style="background-image: url('https://images.unsplash.com/photo-1511671782798-6165b51bfa91?auto=format&fit=crop&w=400&q=80');"></div>
-              <h3>Indie Soul</h3>
-              <p>Guitarras y voces que abrazan el alma.</p>
-            </article>
-            <article class="card">
-              <div class="card-cover" style="background-image: url('https://images.unsplash.com/photo-1511671782780-3f33a2ba0374?auto=format&fit=crop&w=400&q=80');"></div>
-              <h3>Focus Flow</h3>
-              <p>Beats lo-fi para concentrarte sin esfuerzo.</p>
-            </article>
-          </div>
-        </section>
-
-        <section class="section" aria-labelledby="nuevos-lanzamientos">
-          <div class="section-header">
-            <h2 id="nuevos-lanzamientos">Nuevos lanzamientos</h2>
-            <div class="filters">
-              <button class="filter-button active">Todo</button>
-              <button class="filter-button">Álbumes</button>
-              <button class="filter-button">Singles</button>
-              <button class="filter-button">Podcasts</button>
-            </div>
-          </div>
-          <div class="release-list">
-            <article class="release">
-              <img src="https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=200&q=80" alt="Portada" />
-              <div class="release-info">
-                <h3>Universos Paralelos</h3>
-                <p>Lucía Vega • Álbum</p>
-              </div>
-              <span class="release-time">Hace 2 días</span>
-            </article>
-            <article class="release">
-              <img src="https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=200&q=80" alt="Portada" />
-              <div class="release-info">
-                <h3>Marea Alta</h3>
-                <p>Ritmo Azul • Single</p>
-              </div>
-              <span class="release-time">Hace 5 días</span>
-            </article>
-            <article class="release">
-              <img src="https://images.unsplash.com/photo-1485579149621-3123dd979885?auto=format&fit=crop&w=200&q=80" alt="Portada" />
-              <div class="release-info">
-                <h3>Notas del Café</h3>
-                <p>Podcast Café &amp; Beats</p>
-              </div>
-              <span class="release-time">Hace 1 semana</span>
-            </article>
-          </div>
+          <div class="track-list" data-track-list role="list"></div>
         </section>
       </main>
 
-      <footer class="player">
-        <div class="track">
-          <img src="https://images.unsplash.com/photo-1511379938547-c1f69419868d?auto=format&fit=crop&w=80&q=80" alt="Portada canción" />
-          <div class="track-info">
-            <h4>Ritmo en la Piel</h4>
-            <p>Marina Groove</p>
+      <footer class="player" data-player hidden>
+        <div class="player-track">
+          <div class="player-cover" data-current-cover aria-hidden="true"></div>
+          <div class="player-text">
+            <p class="player-title" data-current-title>Nada en reproducción</p>
+            <p class="player-artist" data-current-artist></p>
           </div>
         </div>
-        <div class="controls">
-          <button aria-label="Anterior" class="icon-button">⏮</button>
-          <button aria-label="Reproducir" class="icon-button primary">▶</button>
-          <button aria-label="Siguiente" class="icon-button">⏭</button>
+        <div class="player-controls">
+          <button class="player-button" type="button" data-prev aria-label="Anterior">
+            ◄
+          </button>
+          <button
+            class="player-button primary"
+            type="button"
+            data-play
+            aria-label="Reproducir"
+          >
+            ►
+          </button>
+          <button class="player-button" type="button" data-next aria-label="Siguiente">
+            ►
+          </button>
         </div>
-        <div class="progress">
-          <span>1:14</span>
-          <div class="progress-bar">
-            <div class="progress-bar-fill" style="width: 45%"></div>
+        <div class="player-progress">
+          <span class="player-time" data-current-time>0:00</span>
+          <div class="player-bar" role="presentation">
+            <div class="player-bar-fill" data-progress></div>
           </div>
-          <span>3:20</span>
+          <span class="player-time" data-duration>0:00</span>
         </div>
-        <div class="extra-controls">
-          <button class="icon-button" aria-label="Modo aleatorio">🔀</button>
-          <button class="icon-button" aria-label="Repetir">🔁</button>
-          <button class="icon-button" aria-label="Volumen">🔊</button>
-        </div>
+        <audio data-audio preload="none"></audio>
       </footer>
     </div>
-    <script src="scripts.js"></script>
   </body>
 </html>
