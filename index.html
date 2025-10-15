@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WaveRoom – Tu música</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app">
+      <div class="phone">
+        <header class="topbar">
+          <div class="topbar__status">
+            <span class="dot"></span>
+            Streaming activo
+          </div>
+          <div class="topbar__title">WaveRoom</div>
+          <button class="topbar__avatar" type="button" aria-label="Cuenta">
+            <span>WR</span>
+          </button>
+        </header>
+
+        <main class="screen">
+          <section class="now-playing" aria-live="polite">
+            <div class="now-playing__artwork" id="artwork">
+              <div class="vinyl"></div>
+              <img id="cover" src="" alt="Carátula del tema" />
+            </div>
+            <p class="now-playing__eyebrow">Reproduciendo ahora</p>
+            <h1 id="nowPlaying" class="now-playing__title">Selecciona un tema</h1>
+            <p id="nowPlayingArtist" class="now-playing__subtitle">
+              Añade archivos de audio en la carpeta <code>music</code>
+            </p>
+
+            <div class="progress">
+              <span id="currentTime" class="progress__time">0:00</span>
+              <div class="progress__bar">
+                <input id="progress" type="range" min="0" max="100" value="0" />
+                <div class="progress__track"></div>
+              </div>
+              <span id="duration" class="progress__time">0:00</span>
+            </div>
+          </section>
+
+          <section class="controls" aria-label="Controles de reproducción">
+            <div class="controls__buttons">
+              <button id="shuffleBtn" class="control" type="button" aria-pressed="false">
+                <span>Shuffle</span>
+              </button>
+              <button id="prevBtn" class="control control--main" type="button" aria-label="Anterior">
+                &#9664;&#9664;
+              </button>
+              <button
+                id="playPauseBtn"
+                class="control control--primary"
+                type="button"
+                aria-label="Reproducir"
+              >
+                ▶
+              </button>
+              <button id="nextBtn" class="control control--main" type="button" aria-label="Siguiente">
+                &#9654;&#9654;
+              </button>
+              <button id="repeatBtn" class="control" type="button" aria-pressed="false">
+                <span>Repeat</span>
+              </button>
+            </div>
+            <div class="volume">
+              <label for="volume">Volumen</label>
+              <input id="volume" type="range" min="0" max="1" step="0.01" value="1" />
+            </div>
+          </section>
+
+          <section class="playlist" aria-label="Lista de reproducción">
+            <div class="playlist__header">
+              <div>
+                <h2>Tu música</h2>
+                <p>Coloca tus archivos .mp3, .wav o .m4a en la carpeta <code>music</code>.</p>
+              </div>
+              <button id="refreshBtn" class="refresh" type="button" aria-label="Actualizar lista">
+                ↻
+              </button>
+            </div>
+            <ul id="trackList" class="playlist__list" role="list"></ul>
+            <p id="emptyState" class="empty">
+              Aún no hay canciones. Copia archivos de audio en <code>music</code> y se mostrarán aquí
+              automáticamente.
+            </p>
+          </section>
+        </main>
+      </div>
+    </div>
+
+    <audio id="audio" preload="metadata"></audio>
+    <script src="app.js"></script>
+  </body>
+</html>
