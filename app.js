@@ -34,9 +34,47 @@ const ENDPOINTS = {
   upload: new URL('upload', BASE_URL).toString(),
   music: new URL('music/', BASE_URL).toString(),
 };
+const READ_ONLY_DEFAULT_MESSAGE =
+  'Modo solo lectura activo. Ejecuta "npm run build:library" y sube la carpeta "music/" con "library.json" para refrescar tu biblioteca.';
+const config = createConfig();
 const FAVORITES_KEY = 'waveroom:favorites';
 let sse;
 let uploadHintTimeout;
+
+function createConfig() {
+  const currentUrl = new URL(window.location.href);
+  const dataset = document.body?.dataset || {};
+
+  const forcedMode = currentUrl.searchParams.get('mode');
+  const libraryParam = currentUrl.searchParams.get('library');
+  const musicBaseParam = currentUrl.searchParams.get('musicBase');
+
+  const preferManifest =
+    forcedMode === 'manifest' ||
+    (!forcedMode && (Boolean(libraryParam) || Boolean(dataset.libraryUrl)));
+
+  return {
+    manifestUrl: libraryParam || dataset.libraryUrl || null,
+    musicBase: musicBaseParam || dataset.musicBase || null,
+    preferManifest,
+  };
+}
+
+function normalizeBaseUrl(baseUrl, fallback = ENDPOINTS.music) {
+  if (typeof baseUrl !== 'string' || !baseUrl.trim()) {
+    return fallback;
+  }
+
+  try {
+    const resolved = new URL(baseUrl, fallback);
+    if (!resolved.pathname.endsWith('/')) {
+      resolved.pathname += '/';
+    }
+    return resolved.toString();
+  } catch (error) {
+    return fallback;
+  }
+}
 
 function loadFavorites() {
   try {
@@ -63,24 +101,65 @@ const state = {
   filter: 'all',
   wasPlayingBeforeHide: false,
   shouldResumeOnFocus: false,
+  librarySource: config.preferManifest ? 'manifest' : 'api',
+  musicBase: config.musicBase ? normalizeBaseUrl(config.musicBase, ENDPOINTS.music) : ENDPOINTS.music,
+  canUpload: !config.preferManifest,
+  readOnlyMessage: '',
 };
 
-function updateUploadHint(message, status = 'default') {
+function updateUploadHint(message, status = 'default', options = {}) {
   if (!uploadHint) return;
+
+  const { persist = false, allowHtml = false } = options;
+  clearTimeout(uploadHintTimeout);
+
   if (status === 'default') {
     uploadHint.innerHTML = defaultUploadHint;
-    clearTimeout(uploadHintTimeout);
     uploadHintTimeout = undefined;
   } else {
-    uploadHint.textContent = message;
-    clearTimeout(uploadHintTimeout);
-    uploadHintTimeout = window.setTimeout(() => {
-      updateUploadHint('', 'default');
-    }, 6000);
+    if (allowHtml) {
+      uploadHint.innerHTML = message;
+    } else {
+      uploadHint.textContent = message;
+    }
+
+    if (!persist) {
+      uploadHintTimeout = window.setTimeout(() => {
+        updateUploadHint('', 'default');
+      }, 6000);
+    } else {
+      uploadHintTimeout = undefined;
+    }
   }
 
   uploadHint.classList.toggle('is-error', status === 'error');
   uploadHint.classList.toggle('is-success', status === 'success');
+  uploadHint.classList.toggle('is-notice', status === 'notice');
+}
+
+function setUploaderAvailability(isAvailable, message = READ_ONLY_DEFAULT_MESSAGE) {
+  state.canUpload = isAvailable;
+
+  if (uploadArea) {
+    uploadArea.classList.toggle('is-disabled', !isAvailable);
+    uploadArea.setAttribute('aria-disabled', String(!isAvailable));
+  }
+
+  if (uploadButton) {
+    uploadButton.disabled = !isAvailable;
+  }
+
+  if (uploadInput) {
+    uploadInput.disabled = !isAvailable;
+  }
+
+  if (!isAvailable) {
+    state.readOnlyMessage = message || READ_ONLY_DEFAULT_MESSAGE;
+    updateUploadHint(state.readOnlyMessage, 'notice', { persist: true });
+  } else {
+    state.readOnlyMessage = '';
+    updateUploadHint('', 'default');
+  }
 }
 
 function initUploader() {
@@ -88,6 +167,13 @@ function initUploader() {
 
   const openFilePicker = (event) => {
     event?.preventDefault();
+    if (!state.canUpload) {
+      updateUploadHint(state.readOnlyMessage || READ_ONLY_DEFAULT_MESSAGE, 'notice', {
+        persist: true,
+      });
+      return;
+    }
+
     uploadInput.click();
   };
 
@@ -140,17 +226,35 @@ function initUploader() {
     event.stopPropagation();
     uploadArea.classList.remove('is-dragover');
     const files = event.dataTransfer?.files;
+    if (!state.canUpload) {
+      updateUploadHint(state.readOnlyMessage || READ_ONLY_DEFAULT_MESSAGE, 'notice', {
+        persist: true,
+      });
+      return;
+    }
+
     if (files?.length) {
       handleUploadFiles(files);
     }
   });
 
-  updateUploadHint('', 'default');
+  if (state.canUpload) {
+    updateUploadHint('', 'default');
+  } else {
+    setUploaderAvailability(false, state.readOnlyMessage || READ_ONLY_DEFAULT_MESSAGE);
+  }
 }
 
 function handleUploadFiles(fileList) {
   const files = Array.from(fileList);
   if (!files.length) return;
+
+  if (!state.canUpload) {
+    updateUploadHint(state.readOnlyMessage || READ_ONLY_DEFAULT_MESSAGE, 'notice', {
+      persist: true,
+    });
+    return;
+  }
 
   const supported = files.filter((file) => isSupportedAudioFile(file.name));
   const rejected = files.filter((file) => !isSupportedAudioFile(file.name));
@@ -171,6 +275,13 @@ function handleUploadFiles(fileList) {
 
 async function uploadTracks(files) {
   if (!uploadStatus) return;
+
+  if (!state.canUpload) {
+    updateUploadHint(state.readOnlyMessage || READ_ONLY_DEFAULT_MESSAGE, 'notice', {
+      persist: true,
+    });
+    return;
+  }
 
   uploadStatus.hidden = false;
   let successCount = 0;
@@ -209,6 +320,14 @@ async function uploadTracks(files) {
       badge.textContent = 'Error';
       badge.setAttribute('title', error.message);
       errors.push({ name: file.name, message: error.message });
+
+      if (
+        error?.message?.toLowerCase().includes('fetch') ||
+        error?.message?.toLowerCase().includes('network') ||
+        error?.name === 'TypeError'
+      ) {
+        setUploaderAvailability(false, state.readOnlyMessage || READ_ONLY_DEFAULT_MESSAGE);
+      }
     }
   }
 
@@ -260,23 +379,24 @@ async function fetchTracks(showLoader = false) {
   }
 
   try {
-    const response = await fetch(ENDPOINTS.tracks, { cache: 'no-store' });
-    if (!response.ok) {
-      throw new Error('No se pudo obtener la música');
-    }
+    const { tracks: rawTracks, source, baseUrl, message } = await loadLibrary();
+    state.librarySource = source;
+    state.musicBase = baseUrl;
 
-    const data = await response.json();
+    const normalizedTracks = rawTracks
+      .map((track, index) => normalizeTrackEntry(track, index, state.musicBase))
+      .filter((track) => Boolean(track?.url));
+
     const previousId =
       state.currentIndex >= 0 ? state.tracks[state.currentIndex]?.id : null;
     const wasPlaying = state.isPlaying;
 
-    state.tracks = data.map((track) => ({
-      ...track,
-      addedAt: Number(track.addedAt || Date.now()),
-      url: new URL(track.file, ENDPOINTS.music).toString(),
-    }));
-
+    state.tracks = normalizedTracks;
     cleanupFavorites();
+
+    const readOnlyMessage = message || READ_ONLY_DEFAULT_MESSAGE;
+
+    setUploaderAvailability(source === 'api', readOnlyMessage);
 
     if (state.tracks.length === 0) {
       renderTracks();
@@ -291,28 +411,267 @@ async function fetchTracks(showLoader = false) {
       ? state.tracks.findIndex((track) => track.id === previousId)
       : -1;
 
+    renderTracks();
+    updateLibrarySummary();
+    updateCoverStrip();
+    updateFavoriteNowButton();
+
     if (preservedIndex !== -1) {
       state.currentIndex = preservedIndex;
-      renderTracks();
-      updateLibrarySummary();
-      updateCoverStrip();
-      updateFavoriteNowButton();
       updateActiveItem();
       if (wasPlaying) {
         play();
       }
     } else {
-      renderTracks();
-      updateLibrarySummary();
-      updateCoverStrip();
       selectTrack(0, wasPlaying);
     }
   } catch (error) {
-    console.error(error);
+    console.error('No se pudo cargar la biblioteca:', error);
+    setUploaderAvailability(
+      false,
+      state.readOnlyMessage || 'No se pudo cargar la biblioteca. Verifica tu hosting o el manifest "music/library.json".'
+    );
+    state.tracks = [];
+    state.currentIndex = -1;
+    renderTracks();
+    updateLibrarySummary();
+    updateCoverStrip();
+    updateFavoriteNowButton();
+    stopPlayback();
+    if (emptyStateEl) {
+      emptyStateEl.hidden = false;
+      emptyStateEl.textContent =
+        error?.message || 'No se pudo cargar la biblioteca de canciones.';
+    }
   } finally {
     trackListEl.classList.remove('is-loading');
     toggleEmptyState(getFilteredTracks());
+    updateRealtimeSubscription();
   }
+}
+
+async function loadLibrary() {
+  let apiError;
+
+  if (!config.preferManifest) {
+    try {
+      const apiResult = await fetchLibraryFromApi();
+      return { ...apiResult, source: 'api' };
+    } catch (error) {
+      apiError = error;
+      console.warn('Fallo al leer /tracks:', error);
+    }
+  }
+
+  try {
+    const manifestResult = await fetchLibraryFromManifest();
+    if (manifestResult) {
+      return { ...manifestResult, source: 'manifest' };
+    }
+  } catch (error) {
+    throw error;
+  }
+
+  if (apiError) {
+    throw apiError;
+  }
+
+  throw new Error('No se pudo cargar la biblioteca de canciones.');
+}
+
+async function fetchLibraryFromApi() {
+  const response = await fetch(ENDPOINTS.tracks, { cache: 'no-store' });
+  if (!response.ok) {
+    let payload;
+    try {
+      payload = await response.json();
+    } catch (error) {
+      // ignore
+    }
+    const message = payload?.error || 'No se pudo obtener la música del servidor.';
+    throw new Error(message);
+  }
+
+  const data = await response.json();
+  if (!Array.isArray(data)) {
+    throw new Error('El servidor devolvió una respuesta inesperada.');
+  }
+
+  return { tracks: data, baseUrl: ENDPOINTS.music, message: null };
+}
+
+async function fetchLibraryFromManifest() {
+  const candidates = buildManifestCandidates();
+
+  for (const candidate of candidates) {
+    try {
+      const response = await fetch(candidate, { cache: 'no-store' });
+      if (!response.ok) {
+        continue;
+      }
+
+      const payload = await response.json();
+      const normalized = normalizeManifestPayload(payload, candidate);
+      return normalized;
+    } catch (error) {
+      console.warn(`No se pudo leer manifest ${candidate}:`, error);
+    }
+  }
+
+  if (config.preferManifest) {
+    throw new Error('No se encontró music/library.json. Ejecuta "npm run build:library" y vuelve a subir la carpeta.');
+  }
+
+  return null;
+}
+
+function buildManifestCandidates() {
+  const set = new Set();
+
+  if (config.manifestUrl) {
+    set.add(config.manifestUrl);
+  }
+
+  if (config.musicBase) {
+    try {
+      set.add(new URL('library.json', normalizeBaseUrl(config.musicBase)).toString());
+    } catch (error) {
+      // ignore invalid base
+    }
+  }
+
+  set.add(new URL('library.json', ENDPOINTS.music).toString());
+
+  return Array.from(set);
+}
+
+function normalizeManifestPayload(payload, manifestUrl) {
+  const manifest = Array.isArray(payload)
+    ? { tracks: payload }
+    : payload && typeof payload === 'object'
+    ? payload
+    : null;
+
+  if (!manifest || !Array.isArray(manifest.tracks)) {
+    throw new Error('El manifest music/library.json debe exponer un array "tracks".');
+  }
+
+  const manifestBase = manifest.baseUrl || manifest.base || manifest.musicBase;
+  const derivedBase = normalizeBaseUrl(manifestBase || './', new URL('.', manifestUrl).toString());
+  const message = manifest.message || manifest.notice || manifest.hint || null;
+
+  return {
+    tracks: manifest.tracks,
+    baseUrl: derivedBase,
+    message,
+  };
+}
+
+function normalizeTrackEntry(track, index, baseUrl) {
+  const id =
+    (typeof track.id === 'string' && track.id.trim()) ||
+    (typeof track.file === 'string' && track.file.trim()) ||
+    (typeof track.path === 'string' && track.path.trim()) ||
+    (typeof track.url === 'string' && track.url.trim()) ||
+    `track-${index}`;
+
+  const url = resolveTrackUrl(track, baseUrl);
+  const title = fallbackTitle(track, id);
+  const artist =
+    (typeof track.artist === 'string' && track.artist.trim()) ||
+    (typeof track.author === 'string' && track.author.trim()) ||
+    (Array.isArray(track.artists) && track.artists.join(', ')) ||
+    'Artista desconocido';
+
+  return {
+    ...track,
+    id,
+    file: track.file || track.path || track.url || id,
+    title,
+    artist,
+    duration: parseDurationValue(track.duration),
+    cover: resolveCover(track.cover, baseUrl),
+    addedAt: Number(track.addedAt ?? track.modified ?? track.created ?? Date.now()),
+    url,
+  };
+}
+
+function resolveTrackUrl(track, baseUrl) {
+  const candidate =
+    (typeof track.url === 'string' && track.url.trim()) ||
+    (typeof track.path === 'string' && track.path.trim()) ||
+    (typeof track.file === 'string' && track.file.trim());
+
+  if (!candidate) {
+    return null;
+  }
+
+  try {
+    return new URL(candidate, baseUrl).toString();
+  } catch (error) {
+    console.warn('URL de pista inválida:', candidate, error);
+    return null;
+  }
+}
+
+function resolveCover(cover, baseUrl) {
+  if (typeof cover !== 'string' || !cover.trim()) {
+    return null;
+  }
+
+  if (cover.startsWith('data:')) {
+    return cover;
+  }
+
+  try {
+    return new URL(cover, baseUrl).toString();
+  } catch (error) {
+    console.warn('Carátula inválida:', cover, error);
+    return null;
+  }
+}
+
+function parseDurationValue(value) {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return null;
+    }
+
+    if (/^\d+(?:\.\d+)?$/.test(trimmed)) {
+      return Number(trimmed);
+    }
+
+    const segments = trimmed.split(':').map((part) => Number(part));
+    if (segments.every((part) => Number.isFinite(part))) {
+      return segments.reduce((acc, part) => acc * 60 + part, 0);
+    }
+  }
+
+  return null;
+}
+
+function fallbackTitle(track, id) {
+  const candidates = [track.title, track.name, track.label, id];
+  for (const candidate of candidates) {
+    if (typeof candidate === 'string' && candidate.trim()) {
+      return candidate.trim();
+    }
+  }
+
+  return prettifyFileName(id);
+}
+
+function prettifyFileName(file) {
+  return file
+    .replace(/\.[^/.]+$/, '')
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 function renderTracks() {
@@ -398,8 +757,13 @@ function renderTracks() {
 function toggleEmptyState(filteredTracks) {
   if (state.tracks.length === 0) {
     emptyStateEl.hidden = false;
-    emptyStateEl.innerHTML =
-      'Aún no hay canciones. Usa el panel «Sube tu música», copia archivos en <code>music</code> o súbelas a <code>POST /upload</code>; la lista se actualizará sola.';
+    if (state.librarySource === 'manifest') {
+      emptyStateEl.innerHTML =
+        'Aún no hay canciones. Genera <code>music/library.json</code> con <code>npm run build:library</code> y sube la carpeta <code>music/</code> (incluyendo tus MP3) a tu hosting, por ejemplo <code>http://bc3projects.com/1/music/</code>.';
+    } else {
+      emptyStateEl.innerHTML =
+        'Aún no hay canciones. Usa el panel «Sube tu música», copia archivos en <code>music</code> o súbelas a <code>POST /upload</code>; la lista se actualizará sola.';
+    }
     trackListEl.hidden = true;
     return;
   }
@@ -858,16 +1222,47 @@ function initMediaSession() {
 
 function initSSE() {
   if (typeof EventSource === 'undefined') return;
+  if (state.librarySource !== 'api') {
+    teardownSSE();
+    return;
+  }
+
+  if (sse) {
+    return;
+  }
+
   try {
-    sse?.close();
     sse = new EventSource(ENDPOINTS.events);
     sse.addEventListener('refresh', () => fetchTracks());
     sse.onerror = () => {
-      sse?.close();
-      setTimeout(initSSE, 4000);
+      teardownSSE();
+      setTimeout(() => {
+        if (state.librarySource === 'api') {
+          initSSE();
+        }
+      }, 4000);
     };
   } catch (error) {
     console.error('SSE no disponible', error);
+  }
+}
+
+function teardownSSE() {
+  if (sse) {
+    try {
+      sse.close();
+    } catch (error) {
+      // ignore
+    }
+    sse = undefined;
+  }
+}
+
+function updateRealtimeSubscription() {
+  if (state.librarySource === 'api') {
+    initSSE();
+  } else {
+    teardownSSE();
   }
 }
 
@@ -941,7 +1336,6 @@ document.addEventListener('visibilitychange', () => {
 window.addEventListener('DOMContentLoaded', () => {
   initUploader();
   fetchTracks(true);
-  initSSE();
   initMediaSession();
   updateLibrarySummary();
   updateCoverStrip();
