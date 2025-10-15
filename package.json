@@ -1,0 +1,21 @@
+{
+  "name": "waveroom-streaming",
+  "version": "2.0.0",
+  "type": "module",
+  "description": "Reproductor estilo Spotify con auto-descubrimiento de archivos locales",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.19.2",
+    "multer": "^2.0.2",
+    "music-metadata": "^7.14.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
+  }
+}
