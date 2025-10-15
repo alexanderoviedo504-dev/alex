@@ -20,9 +20,23 @@ const totalTracksEl = document.getElementById('totalTracks');
 const favoriteTracksEl = document.getElementById('favoriteTracks');
 const coverStripEl = document.getElementById('coverStrip');
 const filterButtons = Array.from(document.querySelectorAll('[data-filter]'));
+const uploadArea = document.getElementById('uploadArea');
+const uploadButton = document.getElementById('uploadButton');
+const uploadInput = document.getElementById('uploadInput');
+const uploadStatus = document.getElementById('uploadStatus');
+const uploadHint = document.getElementById('uploadHint');
+const defaultUploadHint = uploadHint?.innerHTML || '';
 
-const MUSIC_PATH = '/music/';
+const BASE_URL = new URL('.', window.location.href);
+const ENDPOINTS = {
+  tracks: new URL('tracks', BASE_URL).toString(),
+  events: new URL('events', BASE_URL).toString(),
+  upload: new URL('upload', BASE_URL).toString(),
+  music: new URL('music/', BASE_URL).toString(),
+};
 const FAVORITES_KEY = 'waveroom:favorites';
+let sse;
+let uploadHintTimeout;
 
 function loadFavorites() {
   try {
@@ -51,13 +65,202 @@ const state = {
   shouldResumeOnFocus: false,
 };
 
+function updateUploadHint(message, status = 'default') {
+  if (!uploadHint) return;
+  if (status === 'default') {
+    uploadHint.innerHTML = defaultUploadHint;
+    clearTimeout(uploadHintTimeout);
+    uploadHintTimeout = undefined;
+  } else {
+    uploadHint.textContent = message;
+    clearTimeout(uploadHintTimeout);
+    uploadHintTimeout = window.setTimeout(() => {
+      updateUploadHint('', 'default');
+    }, 6000);
+  }
+
+  uploadHint.classList.toggle('is-error', status === 'error');
+  uploadHint.classList.toggle('is-success', status === 'success');
+}
+
+function initUploader() {
+  if (!uploadArea || !uploadInput) return;
+
+  const openFilePicker = (event) => {
+    event?.preventDefault();
+    uploadInput.click();
+  };
+
+  uploadArea.addEventListener('click', (event) => {
+    if (event.target.closest('button')) return;
+    openFilePicker(event);
+  });
+
+  uploadArea.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      openFilePicker(event);
+    }
+  });
+
+  uploadButton?.addEventListener('click', openFilePicker);
+
+  uploadInput.addEventListener('change', (event) => {
+    const { files } = event.target;
+    if (files?.length) {
+      handleUploadFiles(files);
+      uploadInput.value = '';
+    }
+  });
+
+  const enterDrag = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = 'copy';
+    }
+    uploadArea.classList.add('is-dragover');
+  };
+
+  const leaveDrag = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    uploadArea.classList.remove('is-dragover');
+  };
+
+  ['dragenter', 'dragover'].forEach((type) => {
+    uploadArea.addEventListener(type, enterDrag);
+  });
+
+  ['dragleave', 'dragend'].forEach((type) => {
+    uploadArea.addEventListener(type, leaveDrag);
+  });
+
+  uploadArea.addEventListener('drop', (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    uploadArea.classList.remove('is-dragover');
+    const files = event.dataTransfer?.files;
+    if (files?.length) {
+      handleUploadFiles(files);
+    }
+  });
+
+  updateUploadHint('', 'default');
+}
+
+function handleUploadFiles(fileList) {
+  const files = Array.from(fileList);
+  if (!files.length) return;
+
+  const supported = files.filter((file) => isSupportedAudioFile(file.name));
+  const rejected = files.filter((file) => !isSupportedAudioFile(file.name));
+
+  if (!supported.length) {
+    updateUploadHint('Formato no soportado. Usa archivos MP3, M4A, AAC, WAV u OGG.', 'error');
+    return;
+  }
+
+  if (rejected.length) {
+    updateUploadHint(`Se ignoraron ${rejected.length} archivo(s) por formato no soportado.`, 'error');
+  } else {
+    updateUploadHint('', 'default');
+  }
+
+  uploadTracks(supported);
+}
+
+async function uploadTracks(files) {
+  if (!uploadStatus) return;
+
+  uploadStatus.hidden = false;
+  let successCount = 0;
+  const errors = [];
+
+  for (const file of files) {
+    const item = renderUploadStatusEntry(file.name);
+    uploadStatus.prepend(item);
+    while (uploadStatus.children.length > 6) {
+      uploadStatus.removeChild(uploadStatus.lastElementChild);
+    }
+
+    try {
+      const body = new FormData();
+      body.append('track', file);
+
+      const response = await fetch(ENDPOINTS.upload, {
+        method: 'POST',
+        body,
+      });
+
+      const payload = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(payload.error || 'No se pudo subir el archivo');
+      }
+
+      item.classList.remove('is-uploading');
+      item.classList.add('is-success');
+      item.querySelector('.uploader__badge').textContent = 'Completado';
+      successCount += 1;
+    } catch (error) {
+      item.classList.remove('is-uploading');
+      item.classList.add('is-error');
+      const badge = item.querySelector('.uploader__badge');
+      badge.textContent = 'Error';
+      badge.setAttribute('title', error.message);
+      errors.push({ name: file.name, message: error.message });
+    }
+  }
+
+  if (errors.length && successCount) {
+    updateUploadHint(
+      `${successCount} archivo(s) subido(s), ${errors.length} con error. Revisa la lista para más detalles.`,
+      'error'
+    );
+  } else if (errors.length) {
+    const [firstError] = errors;
+    const prefix = errors.length === 1 ? `No se pudo subir ${firstError.name}` : `${errors.length} archivos fallaron`;
+    updateUploadHint(`${prefix}. ${firstError.message}`, 'error');
+  } else if (successCount) {
+    updateUploadHint(
+      successCount === 1 ? 'Archivo subido correctamente.' : `${successCount} archivos subidos correctamente.`,
+      'success'
+    );
+  } else {
+    updateUploadHint('', 'default');
+  }
+
+  fetchTracks(true);
+}
+
+function renderUploadStatusEntry(fileName) {
+  const li = document.createElement('li');
+  li.className = 'uploader__status-item is-uploading';
+
+  const name = document.createElement('span');
+  name.className = 'uploader__file';
+  name.textContent = fileName;
+
+  const badge = document.createElement('span');
+  badge.className = 'uploader__badge';
+  badge.textContent = 'Subiendo…';
+
+  li.appendChild(name);
+  li.appendChild(badge);
+  return li;
+}
+
+function isSupportedAudioFile(name) {
+  return /\.(mp3|m4a|aac|wav|ogg)$/i.test(name);
+}
+
 async function fetchTracks(showLoader = false) {
   if (showLoader) {
     trackListEl.classList.add('is-loading');
   }
 
   try {
-    const response = await fetch('/tracks');
+    const response = await fetch(ENDPOINTS.tracks, { cache: 'no-store' });
     if (!response.ok) {
       throw new Error('No se pudo obtener la música');
     }
@@ -70,7 +273,7 @@ async function fetchTracks(showLoader = false) {
     state.tracks = data.map((track) => ({
       ...track,
       addedAt: Number(track.addedAt || Date.now()),
-      url: `${MUSIC_PATH}${encodeURIComponent(track.file)}`,
+      url: new URL(track.file, ENDPOINTS.music).toString(),
     }));
 
     cleanupFavorites();
@@ -196,7 +399,7 @@ function toggleEmptyState(filteredTracks) {
   if (state.tracks.length === 0) {
     emptyStateEl.hidden = false;
     emptyStateEl.innerHTML =
-      'Aún no hay canciones. Copia archivos de audio en <code>music</code> o súbelos a <code>POST /upload</code> y se mostrarán aquí automáticamente.';
+      'Aún no hay canciones. Usa el panel «Sube tu música», copia archivos en <code>music</code> o súbelas a <code>POST /upload</code>; la lista se actualizará sola.';
     trackListEl.hidden = true;
     return;
   }
@@ -654,11 +857,13 @@ function initMediaSession() {
 }
 
 function initSSE() {
+  if (typeof EventSource === 'undefined') return;
   try {
-    const events = new EventSource('/events');
-    events.addEventListener('refresh', () => fetchTracks());
-    events.onerror = () => {
-      events.close();
+    sse?.close();
+    sse = new EventSource(ENDPOINTS.events);
+    sse.addEventListener('refresh', () => fetchTracks());
+    sse.onerror = () => {
+      sse?.close();
       setTimeout(initSSE, 4000);
     };
   } catch (error) {
@@ -734,6 +939,7 @@ document.addEventListener('visibilitychange', () => {
 });
 
 window.addEventListener('DOMContentLoaded', () => {
+  initUploader();
   fetchTracks(true);
   initSSE();
   initMediaSession();

@@ -72,6 +72,7 @@ app.post('/upload', upload.single('track'), (req, res) => {
 
 app.get('/tracks', async (_req, res) => {
   try {
+    res.setHeader('Cache-Control', 'no-store');
     const files = await fs.promises.readdir(MUSIC_DIR);
     const audioFiles = files.filter((file) => isSupportedAudio(file));
 

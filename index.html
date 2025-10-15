@@ -3,6 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0b0c16" />
     <title>WaveRoom – Tu música</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -14,6 +15,12 @@
   </head>
   <body>
     <div class="app">
+      <div class="backdrop">
+        <div class="backdrop__orb backdrop__orb--one"></div>
+        <div class="backdrop__orb backdrop__orb--two"></div>
+        <div class="backdrop__gradient"></div>
+      </div>
+
       <div class="phone">
         <header class="topbar">
           <div class="topbar__status">
@@ -44,7 +51,7 @@
             <p class="now-playing__eyebrow">Reproduciendo ahora</p>
             <h1 id="nowPlaying" class="now-playing__title">Selecciona un tema</h1>
             <p id="nowPlayingArtist" class="now-playing__subtitle">
-              Añade archivos de audio en la carpeta <code>music</code>
+              Usa «Sube tu música» o copia archivos en la carpeta <code>music</code>
             </p>
 
             <div class="progress">
@@ -61,7 +68,7 @@
             <div class="library__hero">
               <div>
                 <h2>Biblioteca</h2>
-                <p>Gestiona tu colección privada y favorita.</p>
+                <p>Organiza tu colección y encuentra tus favoritos al instante.</p>
               </div>
               <div class="library__summary">
                 <span id="totalTracks">0 canciones</span>
@@ -81,9 +88,34 @@
             </div>
             <div class="library__covers" id="coverStrip" aria-hidden="true"></div>
             <p class="library__hint">
-              Puedes subir archivos MP3 desde cualquier cliente HTTP a <code>POST /upload</code> o
-              arrastrarlos dentro de la carpeta <code>music</code> del proyecto.
+              Usa la tarjeta «Sube tu música», copia archivos dentro de <code>music</code> o realiza solicitudes a
+              <code>POST /upload</code> desde cualquier cliente HTTP.
             </p>
+          </section>
+
+          <section class="uploader" aria-label="Sube tu música">
+            <div id="uploadArea" class="uploader__card" role="button" tabindex="0">
+              <div class="uploader__icon">⬆</div>
+              <div class="uploader__copy">
+                <h3>Sube tu música</h3>
+                <p id="uploadHint" class="uploader__hint">
+                  Arrastra y suelta archivos o selecciona desde tu dispositivo. Se guardarán en la carpeta
+                  <code>music/</code> de tu servidor.
+                </p>
+              </div>
+              <div class="uploader__actions">
+                <button id="uploadButton" class="uploader__action" type="button">Elegir archivos</button>
+                <input
+                  id="uploadInput"
+                  class="uploader__input"
+                  type="file"
+                  accept=".mp3,.m4a,.aac,.wav,.ogg"
+                  multiple
+                  hidden
+                />
+              </div>
+            </div>
+            <ul id="uploadStatus" class="uploader__status" aria-live="polite" hidden></ul>
           </section>
 
           <section class="controls" aria-label="Controles de reproducción">
@@ -121,16 +153,16 @@
                   <h2>Lista de canciones</h2>
                   <p>Explora todo lo que has cargado en tu colección.</p>
                 </div>
-                <button id="refreshBtn" class="refresh" type="button" aria-label="Actualizar lista">
-                  ↻
-                </button>
-              </div>
-              <ul id="trackList" class="playlist__list" role="list"></ul>
-              <p id="emptyState" class="empty">
-                Aún no hay canciones. Copia archivos de audio en <code>music</code> o súbelos a
-                <code>POST /upload</code> y se mostrarán aquí automáticamente.
-              </p>
-            </section>
+              <button id="refreshBtn" class="refresh" type="button" aria-label="Actualizar lista">
+                ↻
+              </button>
+            </div>
+            <ul id="trackList" class="playlist__list" role="list"></ul>
+            <p id="emptyState" class="empty">
+              Aún no hay canciones. Usa el panel «Sube tu música», copia archivos de audio en <code>music</code> o súbelos a
+              <code>POST /upload</code>; la lista se actualizará automáticamente.
+            </p>
+          </section>
         </main>
       </div>
     </div>
