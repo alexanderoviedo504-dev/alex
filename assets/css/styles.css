@@ -30,6 +30,10 @@ body {
     color: var(--text);
 }
 
+[hidden] {
+    display: none !important;
+}
+
 body {
     display: flex;
     justify-content: center;
@@ -310,6 +314,7 @@ body {
 }
 
 .track-card {
+    width: 100%;
     display: grid;
     grid-template-columns: auto 1fr auto;
     gap: 14px;
@@ -319,6 +324,9 @@ body {
     background: rgba(255, 255, 255, 0.03);
     border: 1px solid rgba(255, 255, 255, 0.05);
     transition: background 0.2s ease, transform 0.2s ease;
+    cursor: pointer;
+    text-decoration: none;
+    color: inherit;
 }
 
 .track-card:active {
@@ -328,6 +336,17 @@ body {
 .track-card:hover,
 .track-card:focus-within {
     background: rgba(255, 255, 255, 0.08);
+}
+
+.track-card:focus-visible {
+    outline: 2px solid rgba(255, 255, 255, 0.5);
+    outline-offset: 3px;
+}
+
+.track-card.is-current {
+    background: rgba(255, 255, 255, 0.14);
+    border-color: rgba(255, 255, 255, 0.35);
+    box-shadow: 0 18px 45px rgba(0, 0, 0, 0.38);
 }
 
 .track-card img {

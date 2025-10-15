@@ -1,4 +1,5 @@
 const basePath = (window.APP_CONFIG && window.APP_CONFIG.basePath) || '';
+const initialLibrary = (window.APP_CONFIG && window.APP_CONFIG.initialLibrary) || null;
 const withBase = (path) => {
     if (!path) return path;
     if (!basePath) return path;
@@ -54,6 +55,8 @@ const state = {
     filter: 'todos'
 };
 
+let isInitialLoad = true;
+
 function msToTime(ms) {
     if (!Number.isFinite(ms)) return '0:00';
     const totalSeconds = Math.floor(ms / 1000);
@@ -86,28 +89,52 @@ function detectArtworkType(url) {
     }
 }
 
-async function loadLibrary() {
-    const response = await fetch(withBase('api/tracks.php'), { cache: 'no-store' });
-    if (!response.ok) {
-        throw new Error('No se pudo cargar la biblioteca.');
-    }
-    const payload = await response.json();
+function applyLibrary(payload, { fromInitial = false } = {}) {
     state.tracks = Array.isArray(payload.tracks) ? payload.tracks : [];
     state.collections = payload.collections || { albums: [], artists: [] };
     buildQueue();
     renderLibrary();
     renderTracks();
-    hydrateLastTrack();
+    const restored = hydrateLastTrack();
+    if (!restored) {
+        if (state.queue.length > 0) {
+            primeHeroWithTrack(state.queue[0]);
+        } else {
+            resetHero();
+        }
+    }
+    if (!fromInitial) {
+        highlightActiveTrack();
+    }
+}
+
+async function loadLibrary(options = {}) {
+    const { forceRemote = false } = options;
+    if (isInitialLoad && initialLibrary && !forceRemote) {
+        applyLibrary(initialLibrary, { fromInitial: true });
+        isInitialLoad = false;
+        return;
+    }
+
+    const response = await fetch(withBase(`api/tracks.php?ts=${Date.now()}`), { cache: 'no-store' });
+    if (!response.ok) {
+        throw new Error('No se pudo cargar la biblioteca.');
+    }
+    const payload = await response.json();
+    applyLibrary(payload);
+    isInitialLoad = false;
 }
 
 function hydrateLastTrack() {
     const storedId = localStorage.getItem(LAST_TRACK_KEY);
-    if (!storedId) return;
+    if (!storedId) return false;
     const index = state.queue.findIndex((track) => track.id === storedId);
     if (index !== -1) {
         state.currentIndex = index;
         updateNowPlaying(state.queue[index], { autoPlay: false, openOverlay: false });
+        return true;
     }
+    return false;
 }
 
 function buildQueue() {
@@ -229,33 +256,47 @@ function renderTracks(options = {}) {
     items.forEach((track) => {
         const isFav = state.favorites.has(track.id);
         const li = document.createElement('li');
-        li.className = 'track-card';
-        li.dataset.id = track.id;
-        li.innerHTML = `
+        const card = document.createElement('article');
+        card.className = `track-card${state.currentTrackId === track.id ? ' is-current' : ''}`;
+        card.dataset.id = track.id;
+        card.tabIndex = 0;
+        card.setAttribute('role', 'button');
+        card.innerHTML = `
             <img src="${chooseArtwork(track)}" alt="Carátula de ${track.title}" loading="lazy" />
             <div class="track-meta">
                 <p class="title">${track.title}</p>
                 <p class="subtitle">${track.artist} · ${track.album}</p>
             </div>
             <div class="track-actions">
-                <button class="icon-button favorite-button ${isFav ? 'is-active' : ''}" aria-label="Marcar como favorito">
+                <button class="icon-button favorite-button ${isFav ? 'is-active' : ''}" type="button" aria-label="Marcar como favorito">
                     <span class="icon">${isFav ? '♥' : '♡'}</span>
                 </button>
             </div>
         `;
 
-        li.addEventListener('click', (event) => {
+        card.addEventListener('click', (event) => {
             if (event.target.closest('.favorite-button')) return;
             playTrackById(track.id);
         });
 
-        li.querySelector('.favorite-button').addEventListener('click', (event) => {
-            event.stopPropagation();
-            toggleFavoriteForTrack(track.id, li.querySelector('.favorite-button'));
+        card.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                playTrackById(track.id);
+            }
         });
 
+        const favoriteButton = card.querySelector('.favorite-button');
+        favoriteButton.addEventListener('click', (event) => {
+            event.stopPropagation();
+            toggleFavoriteForTrack(track.id, favoriteButton);
+        });
+
+        li.appendChild(card);
         trackList.appendChild(li);
     });
+
+    highlightActiveTrack();
 }
 
 function alignCurrentIndex() {
@@ -298,12 +339,45 @@ function toggleFavoriteForTrack(trackId, buttonEl) {
     syncFavoriteButton();
 }
 
+function primeHeroWithTrack(track) {
+    if (!track) return;
+    heroTrack.textContent = track.title;
+    heroArtist.textContent = `${track.artist} · ${track.album}`;
+    playHero.disabled = false;
+    playHero.dataset.trackId = track.id;
+}
+
+function resetHero() {
+    heroTrack.textContent = 'Selecciona una canción';
+    heroArtist.textContent = 'Elige un track de tu biblioteca para comenzar.';
+    playHero.disabled = true;
+    delete playHero.dataset.trackId;
+}
+
+function highlightActiveTrack() {
+    const cards = trackList.querySelectorAll('.track-card');
+    cards.forEach((card) => {
+        card.classList.toggle('is-current', card.dataset.id === state.currentTrackId);
+    });
+}
+
 function playTrackById(trackId, { autoOpen = true } = {}) {
     const index = state.queue.findIndex((track) => track.id === trackId);
     if (index === -1) {
         const fallback = getTrackById(trackId);
         if (fallback) {
-            updateNowPlaying(fallback, { autoPlay: true, openOverlay: autoOpen });
+            if (state.filter !== 'todos') {
+                state.filter = 'todos';
+                chips.forEach((chip) => chip.classList.toggle('is-active', chip.dataset.filter === 'todos'));
+                renderTracks();
+            }
+            const refreshedIndex = state.queue.findIndex((track) => track.id === trackId);
+            if (refreshedIndex !== -1) {
+                state.currentIndex = refreshedIndex;
+                updateNowPlaying(state.queue[refreshedIndex], { autoPlay: true, openOverlay: autoOpen });
+            } else {
+                updateNowPlaying(fallback, { autoPlay: true, openOverlay: autoOpen });
+            }
         }
         return;
     }
@@ -320,6 +394,7 @@ function updateNowPlaying(track, { autoPlay = true, openOverlay = true } = {}) {
     heroTrack.textContent = track.title;
     heroArtist.textContent = `${track.artist} · ${track.album}`;
     playHero.disabled = false;
+    playHero.dataset.trackId = track.id;
 
     const artworkSrc = chooseArtwork(track);
     miniArtwork.src = artworkSrc;
@@ -350,6 +425,7 @@ function updateNowPlaying(track, { autoPlay = true, openOverlay = true } = {}) {
 
     updateMediaSession(track);
     syncFavoriteButton();
+    highlightActiveTrack();
 }
 
 function showNowPlaying() {
@@ -529,6 +605,11 @@ miniPlay.addEventListener('click', () => {
 miniExpand.addEventListener('click', showNowPlaying);
 btnClose.addEventListener('click', hideNowPlaying);
 playHero.addEventListener('click', () => {
+    const targetId = playHero.dataset.trackId;
+    if (targetId) {
+        playTrackById(targetId);
+        return;
+    }
     const current = getCurrentTrack();
     if (current) {
         showNowPlaying();
@@ -580,7 +661,7 @@ toggleFavorite.addEventListener('click', () => {
 });
 
 refreshLibrary.addEventListener('click', () => {
-    loadLibrary().catch((error) => {
+    loadLibrary({ forceRemote: true }).catch((error) => {
         console.error(error);
     });
 });

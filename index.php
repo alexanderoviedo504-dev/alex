@@ -1,9 +1,32 @@
 <?php
+require_once __DIR__ . '/lib/library.php';
+
 $scriptName = isset($_SERVER['SCRIPT_NAME']) ? $_SERVER['SCRIPT_NAME'] : '';
 $basePath = rtrim(str_replace('\\', '/', dirname($scriptName)), '/');
 if ($basePath === '.' || $basePath === '/') {
     $basePath = '';
 }
+
+$root = realpath(__DIR__);
+$musicPath = $root ? $root . DIRECTORY_SEPARATOR . 'music' : null;
+$initialLibrary = [
+    'tracks' => [],
+    'collections' => [
+        'albums' => [],
+        'artists' => []
+    ]
+];
+
+if ($musicPath && is_dir($musicPath)) {
+    $initialLibrary = waveroom_read_library($musicPath);
+}
+
+$hasTracks = !empty($initialLibrary['tracks']);
+$heroTrackName = $hasTracks ? $initialLibrary['tracks'][0]['title'] : 'Selecciona una canción';
+$heroArtistName = $hasTracks
+    ? $initialLibrary['tracks'][0]['artist'] . ' · ' . $initialLibrary['tracks'][0]['album']
+    : 'Elige un track de tu biblioteca para comenzar.';
+$heroTrackId = $hasTracks ? $initialLibrary['tracks'][0]['id'] : '';
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -32,10 +55,10 @@ if ($basePath === '.' || $basePath === '/') {
             <section class="hero-card glass-panel">
                 <div>
                     <p class="eyebrow">Continúa escuchando</p>
-                    <h2 id="heroTrack">Selecciona una canción</h2>
-                    <p id="heroArtist" class="subdued">Elige un track de tu biblioteca para comenzar.</p>
+                    <h2 id="heroTrack"><?= htmlspecialchars($heroTrackName, ENT_QUOTES, 'UTF-8') ?></h2>
+                    <p id="heroArtist" class="subdued"><?= htmlspecialchars($heroArtistName, ENT_QUOTES, 'UTF-8') ?></p>
                 </div>
-                <button class="primary" id="playHero" disabled>Reproducir</button>
+                <button class="primary" id="playHero" <?= $hasTracks ? '' : 'disabled' ?> data-track-id="<?= htmlspecialchars($heroTrackId, ENT_QUOTES, 'UTF-8') ?>">Reproducir</button>
             </section>
 
             <section class="filters" aria-label="Colecciones">
@@ -62,7 +85,26 @@ if ($basePath === '.' || $basePath === '/') {
                     <h2>Canciones</h2>
                     <button class="text-button" id="refreshLibrary">Actualizar</button>
                 </div>
-                <ul class="track-list" id="trackList" aria-live="polite"></ul>
+                <ul class="track-list" id="trackList" aria-live="polite">
+                    <?php if ($hasTracks): ?>
+                        <?php foreach ($initialLibrary['tracks'] as $track): ?>
+                            <li>
+                                <article class="track-card" role="button" tabindex="0" aria-label="Reproducir <?= htmlspecialchars($track['title'], ENT_QUOTES, 'UTF-8') ?>" data-id="<?= htmlspecialchars($track['id'], ENT_QUOTES, 'UTF-8') ?>">
+                                    <img src="<?= htmlspecialchars($track['artwork'], ENT_QUOTES, 'UTF-8') ?>" alt="Carátula de <?= htmlspecialchars($track['title'], ENT_QUOTES, 'UTF-8') ?>" loading="lazy" />
+                                    <div class="track-meta">
+                                        <p class="title"><?= htmlspecialchars($track['title'], ENT_QUOTES, 'UTF-8') ?></p>
+                                        <p class="subtitle"><?= htmlspecialchars($track['artist'] . ' · ' . $track['album'], ENT_QUOTES, 'UTF-8') ?></p>
+                                    </div>
+                                    <div class="track-actions">
+                                        <button class="icon-button favorite-button" type="button" aria-label="Marcar como favorito">
+                                            <span class="icon">♡</span>
+                                        </button>
+                                    </div>
+                                </article>
+                            </li>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </ul>
             </section>
         </main>
 
@@ -131,7 +173,8 @@ if ($basePath === '.' || $basePath === '/') {
 
     <script>
         window.APP_CONFIG = {
-            basePath: <?= json_encode($basePath) ?>
+            basePath: <?= json_encode($basePath, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?>,
+            initialLibrary: <?= json_encode($initialLibrary, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>
         };
     </script>
     <script src="<?= $basePath ? $basePath . '/' : '' ?>assets/js/app.js" type="module"></script>
