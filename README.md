@@ -1,107 +1,66 @@
-# WaveRoom – Streaming móvil con biblioteca y carga directa
+# WaveRoom PHP – Tu sala musical estilo Apple/Spotify
 
-Aplicación web móvil con estética glassmórfica inspirada en Spotify/Apple Music. Cuenta con controles táctiles, favoritos persistentes, filtrado de biblioteca y un panel "Sube tu música" que envía archivos al servidor sin salir de la interfaz. Cada vez que se añade o elimina una pista en la carpeta `music/`, la lista se actualiza automáticamente mediante Server-Sent Events (SSE). Si tu hosting es estático, la app detecta la ausencia del backend y recurre a un manifest `music/library.json` para listar y reproducir tus canciones en modo lectura.
+WaveRoom es un reproductor *mobile-first* con estética glassmórfica inspirado en Apple Music y Spotify. Está construido con PHP puro y archivos estáticos para que puedas subirlo a tu hosting (incluido cPanel) sin depender de Node.js. La interfaz está pensada para móviles: al tocar una canción se abre una vista de "pantalla completa" con carátula grande, controles translúcidos, favorito, repetición, shuffle y barra de progreso.
 
-## Características destacadas
+## Qué incluye
 
-- **Interfaz pulida** con fondos degradados, fichas translúcidas y animaciones suaves pensadas para pantallas móviles.
-- **Biblioteca dinámica** con contador de canciones, mosaico de carátulas recientes y filtros para todo, favoritos o últimas subidas.
-- **Favoritos persistentes** tanto en la ficha "Ahora reproduciendo" como en la lista, guardados en `localStorage`.
-- **Panel de subida integrado** que acepta `MP3`, `M4A`, `AAC`, `WAV` u `OGG` por drag & drop o selector de archivos y muestra el estado de cada carga.
-- **Reproducción continua en segundo plano** gracias a la Media Session API, con soporte para los botones físicos del dispositivo.
+- **Biblioteca automática**: cada archivo de la carpeta `music/` se indexa al momento. Se reconocen estructuras `Artista/Álbum/Canción.mp3` para generar secciones de artistas y álbumes.
+- **Diseño minimalista**: paneles de cristal, tipografía Inter y miniaturas cuadradas para cada pista.
+- **Vista completa estilo Spotify**: al reproducir una canción aparece un panel a pantalla completa con controles grandes, artwork y progreso.
+- **Favoritos persistentes**: los corazones se guardan en `localStorage` y se sincronizan en la lista, mini-player y pantalla completa.
+- **Controles avanzados**: repetir (off, lista o canción), aleatorio, siguiente/anterior sin perder el estado al volver a la biblioteca y Media Session API para seguir sonando con la pantalla bloqueada.
+- **CPanel privado**: `cpanel.php` te permite subir canciones y portadas directamente desde el navegador, crear carpetas de artista/álbum y previsualizar cómo quedarán las miniaturas antes de publicar.
 
 ## Requisitos
 
-- Node.js 18 o superior
+- PHP 8.1 o superior con extensiones estándar habilitadas.
+- Permisos de lectura (y escritura si usarás el cPanel) en la carpeta `music/`.
 
 ## Instalación
 
-```bash
-npm install
-```
+1. Copia todo el repositorio a tu hosting. Si usas cPanel basta con subir los archivos al directorio público (por ejemplo `public_html/tu-app`).
+2. Asegúrate de crear la carpeta `music/` en la raíz del proyecto y darle permisos de escritura si vas a utilizar el cPanel incorporado.
+3. Opcional: protege `cpanel.php` con autenticación HTTP básica desde tu hosting si quieres mantenerlo privado.
 
-## Uso
+## Uso diario
 
-1. Copia tus archivos `.mp3`, `.m4a`, `.aac`, `.wav` u `.ogg` dentro de la carpeta `music/` en la raíz del proyecto **o** súbelos con el panel "Sube tu música" (usa el botón o arrastra los archivos) o mediante la ruta `POST /upload` descrita más adelante.
-2. Inicia el servidor de desarrollo:
+- **Agregar música manualmente**: sube tus archivos `.mp3`, `.m4a`, `.aac`, `.wav`, `.flac` u `.ogg` dentro de `music/`. Puedes organizarte por carpetas (`music/Artista/Álbum/tema.mp3`). Si en la misma carpeta incluyes `cover.jpg` (o `.png/.webp`) se utilizará como miniatura.
+- **Agregar música desde el CPanel**: visita `cpanel.php`, escribe el artista y álbum, selecciona varias canciones y (opcionalmente) una portada. El formulario guardará los archivos en `music/` respetando la jerarquía indicada y mostrará una cuadrícula de vista previa.
+- **Reproducir**: abre `index.php` desde tu móvil. La biblioteca mostrará filtros (Todos, Favoritos, Álbumes, Artistas, Recientes). Al tocar cualquier canción se abrirá la vista completa con controles.
 
-```bash
-npm run dev
-```
-
-Esto levantará la aplicación en `http://localhost:3000` con recarga automática de la lista cuando se agreguen o eliminen archivos en `music/`.
-
-Para un entorno de producción puedes ejecutar:
-
-```bash
-npm start
-```
-
-El servidor tomará el puerto definido en `process.env.PORT` (por defecto `3000`).
-
-## Estructura de carpetas
+## Estructura principal
 
 ```
 .
-├── app.js          # Lógica del reproductor en el navegador
-├── index.html      # Interfaz móvil con paneles translúcidos y cargador integrado
-├── music/          # Carpeta donde colocar tus canciones
-├── server.js       # Servidor Express + SSE + lectura de metadatos + endpoint de subida
-├── styles.css      # Estilos mobile-first con estética glassmórfica
-└── package.json
+├── index.php             # Interfaz principal del reproductor
+├── cpanel.php            # Panel privado para subir y previsualizar música
+├── api/
+│   └── tracks.php        # Devuelve la biblioteca como JSON
+├── lib/
+│   └── library.php       # Funciones compartidas para indexar la carpeta music/
+├── assets/
+│   ├── css/styles.css    # Estilos glassmórficos mobile-first
+│   ├── js/app.js         # Lógica del reproductor y favoritos
+│   └── img/default-cover.svg
+└── music/                # Tu biblioteca de canciones (añade tus archivos aquí)
 ```
 
-## Biblioteca, filtros y favoritos
+## Funciones clave del reproductor
 
-- Biblioteca con contador de canciones, portadas recientes y filtros para mostrar todo, favoritos o lo último que subiste.
-- Iconos de corazón en la lista y en la ficha «Ahora reproduciendo» para guardar canciones favoritas (persisten en `localStorage`).
-- Compatibilidad con Media Session API para que la reproducción continúe cuando se apaga la pantalla y para aceptar controles del sistema (play/pause, siguiente/anterior y seek).
+- Mini-player translúcido que permanece visible mientras navegas por la biblioteca.
+- Pantalla "Ahora reproduciendo" con carátula grande, tiempos transcurrido/restante y controles táctiles.
+- Navegación fluida: puedes cerrar la vista completa y seguir explorando sin detener la canción.
+- Corrección de títulos: los nombres de archivo se transforman automáticamente a formato "Título Capitalizado" sin extensiones.
+- Continúa sonando con la pantalla bloqueada gracias a la integración con Media Session API.
 
-## Subir música desde la interfaz
+## Personalización
 
-La tarjeta "Sube tu música" permite arrastrar o seleccionar múltiples archivos compatibles. Cada carga se envía a `POST /upload`, se guarda en `music/` y se añade a la lista en cuanto el servidor confirma la operación. El panel muestra el progreso de cada archivo (subiendo, completado o error) y se restablece automáticamente después de unos segundos.
+Puedes editar `assets/css/styles.css` para ajustar colores o radios y modificar `assets/js/app.js` si quieres ampliar la lógica (por ejemplo añadir colas personalizadas). Los archivos PHP solo dependen de la librería estándar, por lo que funcionarán en la mayoría de hostings compartidos.
 
-Si el host no admite arrastrar y soltar, el botón "Elegir archivos" abre el selector del sistema. Cuando la aplicación detecta que el backend no está disponible (por ejemplo, al publicar en un hosting puramente estático) la tarjeta queda en modo solo lectura y muestra instrucciones para actualizar el manifest manualmente.
+## Consejos de seguridad
 
-## Subir música por API
+- Protege `cpanel.php` mediante autenticación básica o IP permitida si tu hosting es público.
+- Realiza copias de seguridad periódicas de la carpeta `music/`.
+- Mantén PHP actualizado para evitar vulnerabilidades.
 
-Además de copiar archivos a `music/`, puedes subir canciones desde cualquier cliente HTTP apuntando a `POST /upload` (esta es la ruta que se usa desde el panel dentro de la app).
-
-```bash
-curl -F "track=@/ruta/a/cancion.mp3" http://localhost:3000/upload
-```
-
-El servidor guarda el archivo en `music/`, intenta leer sus metadatos y notifica al cliente para que la biblioteca se actualice sin recargar.
-
-## Hosting sin Node (manifest estático)
-
-Si tu proveedor solo permite archivos estáticos (por ejemplo cPanel compartido), WaveRoom funciona en modo lectura generando un manifest `music/library.json` que describe tus canciones:
-
-1. En tu máquina local coloca los MP3 en `music/` y ejecuta:
-
-   ```bash
-   npm run build:library
-   ```
-
-   Esto crea `music/library.json` con títulos, artistas, duración, carátulas embebidas y la ruta base `./`.
-2. Sube **todos** los archivos de la carpeta `music/` (canciones + `library.json`) junto con `index.html`, `app.js`, `styles.css` y el resto del proyecto a tu hosting.
-3. Accede a la web publicada. Si el backend no está disponible, el cliente leerá automáticamente `music/library.json` y mostrará la biblioteca en modo solo lectura. El botón "↻" vuelve a descargar el manifest cuando actualices la carpeta.
-
-Ejemplo: si publicas el proyecto en `http://bc3projects.com/1/`, coloca tus canciones y `library.json` dentro de `http://bc3projects.com/1/music/`. Todas las pistas con extensión permitida podrán reproducirse directamente desde ese dominio.
-
-> Nota: en modo estático no es posible subir archivos desde la interfaz ni mediante `POST /upload`. Para añadir nuevas canciones vuelve a ejecutar `npm run build:library` con tu colección actualizada y sube los archivos resultantes.
-
-## Despliegue en tu hosting
-
-- **Con backend Node** (modo completo):
-  1. Sube el proyecto y la carpeta `music/` a un servidor con Node.js.
-  2. Ejecuta `npm install` y luego `npm start` (o configura un proceso permanente con PM2/Systemd). Define `PORT` si tu proveedor lo requiere.
-  3. Apunta tu dominio o proxy inverso al proceso Node y permite el acceso a `/tracks`, `/music`, `/upload` y `/events` sin cachear.
-  4. Asigna permisos de escritura a `music/` para que `POST /upload` pueda guardar los MP3. Esta es la ruta que usa el panel "Sube tu música".
-- **Sin backend (modo manifest)**: sigue los pasos del apartado anterior "Hosting sin Node". La app seguirá reproduciendo la biblioteca, pero la subida quedará deshabilitada.
-
-En ambos casos, el reproductor mantiene los favoritos en el dispositivo y continúa la reproducción aunque bloquees la pantalla gracias a la Media Session API.
-
-## Metadatos
-
-Cuando es posible, el servidor lee los metadatos ID3 de cada archivo para mostrar título, artista, carátula y fecha de modificación. Si el archivo no tiene metadatos, el nombre del archivo se usa como título y se muestra un marcador genérico.
+¡Listo! Sube tus pistas, disfruta del diseño minimalista y lleva tu experiencia musical estilo Apple/Spotify a tu propio hosting.
