@@ -12,7 +12,8 @@
   "license": "MIT",
   "dependencies": {
     "express": "^4.19.2",
-    "music-metadata": "^7.14.0"
+    "music-metadata": "^7.14.0",
+    "multer": "^2.0.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.0"

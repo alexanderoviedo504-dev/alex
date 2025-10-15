@@ -31,6 +31,15 @@
             <div class="now-playing__artwork" id="artwork">
               <div class="vinyl"></div>
               <img id="cover" src="" alt="Carátula del tema" />
+              <button
+                id="favoriteNow"
+                class="now-playing__favorite"
+                type="button"
+                aria-label="Añadir a favoritos"
+                aria-pressed="false"
+              >
+                ♡
+              </button>
             </div>
             <p class="now-playing__eyebrow">Reproduciendo ahora</p>
             <h1 id="nowPlaying" class="now-playing__title">Selecciona un tema</h1>
@@ -46,6 +55,35 @@
               </div>
               <span id="duration" class="progress__time">0:00</span>
             </div>
+          </section>
+
+          <section class="library" aria-label="Biblioteca personal">
+            <div class="library__hero">
+              <div>
+                <h2>Biblioteca</h2>
+                <p>Gestiona tu colección privada y favorita.</p>
+              </div>
+              <div class="library__summary">
+                <span id="totalTracks">0 canciones</span>
+                <span id="favoriteTracks">0 favoritos</span>
+              </div>
+            </div>
+            <div class="library__filters" role="tablist" aria-label="Filtros de biblioteca">
+              <button class="chip is-active" role="tab" aria-selected="true" data-filter="all">
+                Todo
+              </button>
+              <button class="chip" role="tab" aria-selected="false" data-filter="favorites">
+                Favoritos
+              </button>
+              <button class="chip" role="tab" aria-selected="false" data-filter="recent">
+                Recientes
+              </button>
+            </div>
+            <div class="library__covers" id="coverStrip" aria-hidden="true"></div>
+            <p class="library__hint">
+              Puedes subir archivos MP3 desde cualquier cliente HTTP a <code>POST /upload</code> o
+              arrastrarlos dentro de la carpeta <code>music</code> del proyecto.
+            </p>
           </section>
 
           <section class="controls" aria-label="Controles de reproducción">
@@ -77,27 +115,27 @@
             </div>
           </section>
 
-          <section class="playlist" aria-label="Lista de reproducción">
-            <div class="playlist__header">
-              <div>
-                <h2>Tu música</h2>
-                <p>Coloca tus archivos .mp3, .wav o .m4a en la carpeta <code>music</code>.</p>
+            <section class="playlist" aria-label="Lista de canciones">
+              <div class="playlist__header">
+                <div>
+                  <h2>Lista de canciones</h2>
+                  <p>Explora todo lo que has cargado en tu colección.</p>
+                </div>
+                <button id="refreshBtn" class="refresh" type="button" aria-label="Actualizar lista">
+                  ↻
+                </button>
               </div>
-              <button id="refreshBtn" class="refresh" type="button" aria-label="Actualizar lista">
-                ↻
-              </button>
-            </div>
-            <ul id="trackList" class="playlist__list" role="list"></ul>
-            <p id="emptyState" class="empty">
-              Aún no hay canciones. Copia archivos de audio en <code>music</code> y se mostrarán aquí
-              automáticamente.
-            </p>
-          </section>
+              <ul id="trackList" class="playlist__list" role="list"></ul>
+              <p id="emptyState" class="empty">
+                Aún no hay canciones. Copia archivos de audio en <code>music</code> o súbelos a
+                <code>POST /upload</code> y se mostrarán aquí automáticamente.
+              </p>
+            </section>
         </main>
       </div>
     </div>
 
-    <audio id="audio" preload="metadata"></audio>
+    <audio id="audio" preload="metadata" playsinline crossorigin="anonymous"></audio>
     <script src="app.js"></script>
   </body>
 </html>

@@ -3,6 +3,7 @@ import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { parseFile } from 'music-metadata';
+import multer from 'multer';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -15,6 +16,31 @@ const clients = new Set();
 let watcher;
 
 fs.mkdirSync(MUSIC_DIR, { recursive: true });
+
+const storage = multer.diskStorage({
+  destination: (_req, _file, cb) => {
+    cb(null, MUSIC_DIR);
+  },
+  filename: (_req, file, cb) => {
+    const sanitized = sanitizeFileName(file.originalname);
+    const ext = path.extname(sanitized).toLowerCase();
+    const base = path.basename(sanitized, ext);
+    const timestamp = Date.now();
+    cb(null, `${base}-${timestamp}${ext}`);
+  },
+});
+
+const upload = multer({
+  storage,
+  limits: { fileSize: 100 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (isSupportedAudio(file.originalname)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Formato no soportado. Usa archivos MP3, WAV, M4A u OGG.'));
+    }
+  },
+});
 
 app.get('/', (_req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
@@ -30,6 +56,20 @@ app.get('/app.js', (_req, res) => {
 
 app.use('/music', express.static(MUSIC_DIR));
 
+app.post('/upload', upload.single('track'), (req, res) => {
+  if (!req.file) {
+    res.status(400).json({ error: 'No se recibió ningún archivo' });
+    return;
+  }
+
+  broadcastRefresh();
+  res.status(201).json({
+    message: 'Canción subida correctamente',
+    file: req.file.filename,
+    path: `/music/${encodeURIComponent(req.file.filename)}`,
+  });
+});
+
 app.get('/tracks', async (_req, res) => {
   try {
     const files = await fs.promises.readdir(MUSIC_DIR);
@@ -39,7 +79,10 @@ app.get('/tracks', async (_req, res) => {
       audioFiles.map(async (file) => {
         const filePath = path.join(MUSIC_DIR, file);
         try {
-          const parsed = await parseFile(filePath, { duration: true });
+          const [parsed, stats] = await Promise.all([
+            parseFile(filePath, { duration: true }),
+            fs.promises.stat(filePath),
+          ]);
           const picture = parsed.common.picture?.[0];
           const cover = picture ? toDataUrl(picture) : null;
 
@@ -50,9 +93,11 @@ app.get('/tracks', async (_req, res) => {
             artist: parsed.common.artist || parsed.common.album || 'Artista desconocido',
             duration: parsed.format.duration || null,
             cover,
+            addedAt: stats.mtimeMs,
           };
         } catch (error) {
           console.warn(`No se pudo leer metadatos de ${file}:`, error.message);
+          const stats = await fs.promises.stat(filePath);
           return {
             id: file,
             file,
@@ -60,6 +105,7 @@ app.get('/tracks', async (_req, res) => {
             artist: 'Artista desconocido',
             duration: null,
             cover: null,
+            addedAt: stats.mtimeMs,
           };
         }
       })
@@ -88,6 +134,13 @@ app.get('/events', (req, res) => {
 
 function isSupportedAudio(file) {
   return /\.(mp3|m4a|aac|wav|ogg)$/i.test(file);
+}
+
+function sanitizeFileName(file) {
+  return file
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9._-]+/g, '-');
 }
 
 function beautifyFileName(file) {
@@ -127,6 +180,13 @@ function debounce(fn, delay) {
     timeout = setTimeout(fn, delay);
   };
 }
+
+app.use((error, _req, res, _next) => {
+  if (error) {
+    console.error('Error en la carga:', error.message);
+    res.status(400).json({ error: error.message || 'No se pudo subir el archivo' });
+  }
+});
 
 startWatcher();
 
