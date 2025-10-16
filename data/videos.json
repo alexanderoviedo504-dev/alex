@@ -1,0 +1,32 @@
+[
+  {
+    "id": "the-last-dawn",
+    "title": "The Last Dawn",
+    "description": "Un grupo de exploradores lucha por sobrevivir en un planeta en colapso.",
+    "category": "Ciencia ficción",
+    "thumbnail": "assets/images/default-thumb.svg",
+    "video": "media/sample.mp4",
+    "year": 2023,
+    "duration": "1h 57m"
+  },
+  {
+    "id": "hidden-truths",
+    "title": "Hidden Truths",
+    "description": "Una detective descubre una conspiración que cambia el destino de su ciudad.",
+    "category": "Thriller",
+    "thumbnail": "assets/images/default-thumb.svg",
+    "video": "media/sample.mp4",
+    "year": 2022,
+    "duration": "2h 10m"
+  },
+  {
+    "id": "family-tales",
+    "title": "Family Tales",
+    "description": "Historias que celebran las conexiones y desafíos familiares.",
+    "category": "Drama",
+    "thumbnail": "assets/images/default-thumb.svg",
+    "video": "media/sample.mp4",
+    "year": 2021,
+    "duration": "1h 32m"
+  }
+]
